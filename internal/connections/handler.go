@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/n0tB0b17/isner/internal/events"
@@ -53,10 +54,79 @@ func (wsh *WebSocketHandler) ServeHttp(w http.ResponseWriter, r *http.Request) {
 
 	client := NewClientConnection(ws, meta)
 	wsh.connManager.Register(client)
-	// publish to rabbitMQ
+
+	wsh.eventPub.Publish(events.EventClientConnected, map[string]interface{}{
+		"client_id": client.ID,
+		"meta_data": meta,
+	})
+
 	go wsh.handleClientMessage(client)
 }
 
-func (wsh *WebSocketHandler) handleClientMessage(client *ClientConnection)           {}
-func (wsh *WebSocketHandler) handleTextMessage(client *ClientConnection, msg []byte) {}
-func (wsh *WebSocketHandler) handleCommandResponse(clientID, commandID string, resp interface{})
+func (wsh *WebSocketHandler) handleClientMessage(client *ClientConnection) {
+	defer func() {
+		wsh.connManager.Unregister(client.ID) // removes from manager's map
+		client.Close()
+	}()
+
+	for {
+		if !client.IsActive() {
+			break
+		}
+
+		msgType, msg, err := client.Socket.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				fmt.Printf("[connections::handleClientMessage]::> Unexpected closing error: %v \n", err)
+			}
+
+			break
+		}
+
+		if msgType == websocket.TextMessage {
+			wsh.handleTextMessage(client, msg)
+		}
+	}
+
+	wsh.eventPub.Publish(events.EventClientDisconnected, map[string]interface{}{
+		"client_id": client.ID,
+	})
+}
+
+func (wsh *WebSocketHandler) handleTextMessage(client *ClientConnection, msg []byte) {
+	var payload struct {
+		Type      string      `json:"type"`
+		Data      interface{} `json:"data"`
+		CommandID string      `json:"command_id,omitempty"`
+	}
+
+	if err := json.Unmarshal(msg, &payload); err != nil {
+		fmt.Printf("[connections::handleTextMessage]::>  Unable to decode message: %v \n", err)
+		return
+	}
+
+	switch payload.Type {
+	case "ready":
+		fmt.Printf("[connections::handleTextMessage]::> Client: %s is ready for command \n", client.ID)
+	case "response":
+		wsh.handleCommandResponse(client.ID, payload.CommandID, payload.Data)
+	default:
+		fmt.Printf("[connections::handleTextMessage]::> Running default case for handleTextMessage \n")
+	}
+}
+
+func (wsh *WebSocketHandler) handleCommandResponse(clientID, commandID string, resp interface{}) {
+	respByte, err := json.Marshal(resp)
+	if err != nil {
+		fmt.Printf("[connection::handleCommandResponse]::> Unable to marshal interface to bytes: %v \n", err)
+		return
+	}
+
+	wsh.eventPub.Publish(events.EventCommandCompleted, models.CommandResponse{
+		CommandID: commandID,
+		ClientID:  clientID,
+		Output:    string(respByte),
+		Success:   true,
+		Timestamp: time.Now(),
+	})
+}

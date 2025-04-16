@@ -68,7 +68,7 @@ func (ep *EventPublisher) Publish(eventType EventType, payload interface{}) erro
 
 	err = ep.channel.Publish(
 		ep.config.EventExchange,
-		string(eventType),
+		string(eventType), // key
 		false, false,
 		amqp091.Publishing{
 			ContentType: "application/json",

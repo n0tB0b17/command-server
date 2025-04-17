@@ -32,7 +32,6 @@ func (a *APIServer) Start() error {
 
 	router := mux.NewRouter()
 	router.HandleFunc("/api/v1/connect", a.wsHandler.ServeHttp)
-	// add other endpoint
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{"*"},
 		AllowedHeaders: []string{"GET", "POST", "OPTIONS"},

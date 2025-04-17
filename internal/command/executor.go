@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/n0tB0b17/isner/internal/connections"
 	"github.com/n0tB0b17/isner/internal/events"
 	"github.com/n0tB0b17/isner/internal/models"

@@ -7,22 +7,19 @@ import (
 )
 
 type Client struct {
-	ID            string
-	ConnectionID  string
-	Status        ConnectionStatus
-	MetaData      ClientMetadata
-	CommandOutput map[string]string // key: commandID, value: output
+	ID            string            `json:"client_id"`
+	ConnectionID  string            `json:"connection_id"`
+	Status        ConnectionStatus  `json:"status"`
+	MetaData      ClientMetadata    `json:"meta_data"`
+	CommandOutput map[string]string `json:"command_output"` // key: commandID, value: output
 }
 
-func NewClient(connID string) *Client {
+func NewClient(connID string, meta ClientMetadata) *Client {
 	return &Client{
-		ID:           utils.GenerateUUID("client"),
-		ConnectionID: connID,
-		Status:       StatusConnected,
-		MetaData: ClientMetadata{
-			FirstSeen: time.Now(),
-			LastSeen:  time.Now(),
-		},
+		ID:            utils.GenerateUUID("client"),
+		ConnectionID:  connID,
+		Status:        StatusConnected,
+		MetaData:      meta,
 		CommandOutput: make(map[string]string),
 	}
 }

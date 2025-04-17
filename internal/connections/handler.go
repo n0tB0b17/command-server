@@ -38,7 +38,8 @@ func (wsh *WebSocketHandler) ServeHttp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, msg, err := ws.ReadMessage()
+	fmt.Printf("[wsh::ServeHttp]::> new agent connected from: %s \n", r.RemoteAddr)
+	_, msg, err := ws.ReadMessage() // first message read (meta-data)
 	if err != nil {
 		fmt.Printf("[wsh::ServeHttp]::> error while reading message: %v \n", err)
 		ws.Close()
@@ -51,6 +52,9 @@ func (wsh *WebSocketHandler) ServeHttp(w http.ResponseWriter, r *http.Request) {
 		ws.Close()
 		return
 	}
+
+	meta.IP = r.RemoteAddr
+	meta.FirstSeen = time.Now()
 
 	client := NewClientConnection(ws, meta)
 	wsh.connManager.Register(client)
@@ -65,7 +69,7 @@ func (wsh *WebSocketHandler) ServeHttp(w http.ResponseWriter, r *http.Request) {
 
 func (wsh *WebSocketHandler) handleClientMessage(client *ClientConnection) {
 	defer func() {
-		wsh.connManager.Unregister(client.ID) // removes from manager's map
+		wsh.connManager.Unregister(client.ID)
 		client.Close()
 	}()
 
@@ -74,12 +78,11 @@ func (wsh *WebSocketHandler) handleClientMessage(client *ClientConnection) {
 			break
 		}
 
-		msgType, msg, err := client.Socket.ReadMessage()
+		msgType, msg, err := client.Socket.ReadMessage() // listen continually
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				fmt.Printf("[connections::handleClientMessage]::> Unexpected closing error: %v \n", err)
 			}
-
 			break
 		}
 
@@ -107,11 +110,30 @@ func (wsh *WebSocketHandler) handleTextMessage(client *ClientConnection, msg []b
 
 	switch payload.Type {
 	case "ready":
+		wsh.sendTestResponse(client)
 		fmt.Printf("[connections::handleTextMessage]::> Client: %s is ready for command \n", client.ID)
 	case "response":
 		wsh.handleCommandResponse(client.ID, payload.CommandID, payload.Data)
 	default:
 		fmt.Printf("[connections::handleTextMessage]::> Running default case for handleTextMessage \n")
+	}
+}
+
+func (wsh *WebSocketHandler) sendTestResponse(c *ClientConnection) {
+	cmd := models.NewCommand(models.CmdEcho, c.ID, "this is test response")
+	cmdResp := map[string]interface{}{
+		"type":       "command",
+		"command_id": cmd.ID,
+		"command":    string(cmd.Type),
+		"args":       []string{cmd.Content},
+	}
+
+	byt, _ := json.Marshal(cmdResp)
+	if err := c.SendMessage(websocket.TextMessage, byt); err != nil {
+		fmt.Printf("[connection::sendTestResponse]::>  error while sending message: %v \n", err)
+		return
+	} else {
+		fmt.Println("[connection::sendTestResponse]::> send test succeeded")
 	}
 }
 

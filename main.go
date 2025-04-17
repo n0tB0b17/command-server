@@ -1,6 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/n0tB0b17/isner/internal/apis"
 	"github.com/n0tB0b17/isner/internal/command"
 	"github.com/n0tB0b17/isner/internal/config"
 	"github.com/n0tB0b17/isner/internal/connections"
@@ -31,5 +37,20 @@ func main() {
 	processor := command.NewCommandProcessor(publisher, store)
 	processor.RegisterEventHandler(consumer)
 
-	connections.NewWebSocketHandler(conn, publisher)
+	wsHandler := connections.NewWebSocketHandler(conn, publisher)
+
+	s := apis.NewAPIServer(wsHandler, store)
+	if err := s.Start(); err != nil {
+		fmt.Printf("error starting api server: %v \n", err)
+	}
+
+	osChan := make(chan os.Signal, 1)
+	signal.Notify(osChan, syscall.SIGINT, syscall.SIGTERM)
+	<-osChan
+
+	if err := s.Shutdown(); err != nil {
+		fmt.Printf("error while shutting down api server: %v \n", err)
+	}
+
+	fmt.Println("server shutdown gracefully...")
 }

@@ -10,10 +10,10 @@ import (
 )
 
 type ClientConnection struct {
-	ID           string
+	ID           string `json:"id"`
 	Socket       *websocket.Conn
-	Metadata     models.ClientMetadata
-	LastActivity time.Time
+	Metadata     models.ClientMetadata `json:"meta_data"`
+	LastActivity time.Time             `json:"last_activity"`
 	mu           sync.Mutex
 }
 

@@ -11,10 +11,10 @@ const (
 )
 
 type ClientMetadata struct {
-	OS        string
-	Arch      string
-	Hostname  string
-	IP        string
-	FirstSeen time.Time
-	LastSeen  time.Time
+	OS        string    `json:"os"`
+	Arch      string    `json:"arch"`
+	Hostname  string    `json:"host_name"`
+	IP        string    `json:"ip"`
+	FirstSeen time.Time `json:"first_seen"`
+	LastSeen  time.Time `json:"last_seen"`
 }

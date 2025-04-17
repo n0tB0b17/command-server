@@ -1,22 +1,35 @@
 package main
 
 import (
-	"fmt"
-
+	"github.com/n0tB0b17/isner/internal/command"
 	"github.com/n0tB0b17/isner/internal/config"
+	"github.com/n0tB0b17/isner/internal/connections"
 	"github.com/n0tB0b17/isner/internal/events"
+	"github.com/n0tB0b17/isner/internal/storage"
 )
 
 func main() {
 	cfg := config.GetConfig()
-	fmt.Println("starter for command and control server")
-	publisher, _ := events.NewEventPublisher(cfg)
-	consumer, _ := events.NewEventConsumer(cfg)
-	publisher.Publish(events.EventClientConnected, nil)
+	store := storage.NewMemoryStorage()
+	publisher, err := events.NewEventPublisher(cfg)
+	if err != nil {
+		return
+	}
+	defer publisher.Close()
 
-	consumer.RegisterEvent(events.EventClientConnected, func(event events.RabbitMQEvent) error {
-		return nil
-	})
+	consumer, err := events.NewEventConsumer(cfg)
+	if err != nil {
+		return
+	}
+	defer consumer.Close()
 
-	consumer.StartConsuming("client_events", []string{"client.connected"})
+	conn := connections.NewConnectionManager()
+	registry := command.NewCommandRegistry()
+	registry.InitializeDefaultCmd()
+
+	_ = command.NewCommandExecutor(conn, publisher, registry)
+	processor := command.NewCommandProcessor(publisher, store)
+	processor.RegisterEventHandler(consumer)
+
+	connections.NewWebSocketHandler(conn, publisher)
 }

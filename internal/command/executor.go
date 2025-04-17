@@ -16,7 +16,7 @@ type CmdExecutor struct {
 	registry *CommandRegistry
 }
 
-func NewCmdExecutor(
+func NewCommandExecutor(
 	conn *connections.ConnectionManager,
 	pub *events.EventPublisher,
 	registry *CommandRegistry,

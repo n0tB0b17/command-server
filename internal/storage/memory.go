@@ -124,3 +124,7 @@ func (ms *MemoryStorage) GetCommandHistory(clientID string) ([]*models.CommandRe
 
 	return ms.commandHistory[clientID], nil
 }
+
+func (ms *MemoryStorage) Close() error {
+	return nil
+}

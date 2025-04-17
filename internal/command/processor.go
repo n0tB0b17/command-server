@@ -13,10 +13,10 @@ type CommandProcessor struct {
 	store storage.Repository
 }
 
-func NewCommandProcessor(e *events.EventPublisher, store storage.Repository) *CommandProcessor {
+func NewCommandProcessor(e *events.EventPublisher, repo storage.Repository) *CommandProcessor {
 	return &CommandProcessor{
 		event: e,
-		store: store,
+		store: repo,
 	}
 }
 
